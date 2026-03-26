@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Night Shift MVP</title>
+    <link rel="stylesheet" href="./css/style.css" />
+    <script async src="https://unpkg.com/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.167.1/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="game-root">
+      <canvas id="game-canvas" aria-label="Night Shift game canvas"></canvas>
+
+      <div id="hud">
+        <div id="clock">12:00 AM</div>
+        <div id="status">Survive until 6:00 AM</div>
+      </div>
+
+      <div id="instruction-panel" class="panel">
+        <h2>Night Shift - Controls</h2>
+        <ul>
+          <li><strong>A / D</strong> or <strong>◀ / ▶</strong>: Look left/right</li>
+          <li><strong>Mouse</strong>: Fine camera pan</li>
+          <li><strong>F</strong> (hold): Flashlight</li>
+          <li><strong>R</strong>: Restart after win/loss</li>
+        </ul>
+        <p>Threats may appear around <strong>2 AM, 3 AM, 4 AM, and 5 AM</strong>.</p>
+      </div>
+
+      <div id="flashlight-mask" aria-hidden="true"></div>
+
+      <div id="end-panel" class="panel hidden">
+        <h2 id="end-title">Night Over</h2>
+        <p id="end-message">You survived.</p>
+        <button id="restart-button" type="button">Restart Night</button>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
