@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Night Shift MVP</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <div id="hud">
+      <div id="clock">12:00 AM</div>
+      <div id="flashlightState">Flashlight: OFF</div>
+    </div>
+
+    <div id="instructions" role="dialog" aria-label="Directions">
+      <h1>Night Shift MVP</h1>
+      <p>Survive until 6:00 AM.</p>
+      <ul>
+        <li><b>A / D</b> or <b>← / →</b>: Look left/right</li>
+        <li><b>W / S</b> or <b>↑ / ↓</b>: Zoom in/out slightly</li>
+        <li><b>F</b> or <b>Space</b>: Toggle flashlight</li>
+        <li><b>H</b>: Hide/show this directions panel</li>
+      </ul>
+      <p>
+        The creature appears during the night around 2 AM, 3 AM, 4 AM, and 5 AM.
+        Use your flashlight to spot it.
+      </p>
+      <button id="startBtn">Start Night</button>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
