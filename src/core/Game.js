@@ -32,6 +32,9 @@ export class Game {
     this.flashlightSystem = new FlashlightSystem(document.getElementById('flashlight-mask'), this.statusLabel);
 
     this.lookOffset = 0;
+    this.cameraSwayX = 0;
+    this.cameraSwayY = 0;
+    this.backgroundLayers = [];
     this.state = 'loading';
 
     this.onResize = this.onResize.bind(this);
@@ -53,8 +56,10 @@ export class Game {
   }
 
   setupScene(textures) {
-    const background = this.createBackground(textures.officeBackground);
-    this.scene.add(background);
+    this.backgroundLayers = this.createBackgroundLayers(textures.officeBackground);
+    for (const layer of this.backgroundLayers) {
+      this.scene.add(layer.mesh);
+    }
 
     this.characterMesh = this.createCharacter(textures.characterSprite);
     this.scene.add(this.characterMesh);
@@ -73,13 +78,30 @@ export class Game {
     }
   }
 
-  createBackground(texture) {
-    const geometry = new THREE.PlaneGeometry(16, 9);
-    const material = texture
-      ? new THREE.MeshBasicMaterial({ map: texture })
-      : new THREE.MeshBasicMaterial({ color: '#202533' });
+  createBackgroundLayers(texture) {
+    const layerSettings = [
+      { scale: 1.26, depth: -1.2, opacity: 0.95, swayMultiplier: 0.12 },
+      { scale: 1.16, depth: -0.65, opacity: 0.5, swayMultiplier: 0.28 },
+      { scale: 1.06, depth: -0.2, opacity: 0.2, swayMultiplier: 0.46 },
+    ];
 
-    return new THREE.Mesh(geometry, material);
+    return layerSettings.map((settings) => {
+      const geometry = new THREE.PlaneGeometry(16 * settings.scale, 9 * settings.scale);
+      const material = texture
+        ? new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            opacity: settings.opacity,
+          })
+        : new THREE.MeshBasicMaterial({ color: '#202533', transparent: true, opacity: settings.opacity });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.z = settings.depth;
+      return {
+        mesh,
+        swayMultiplier: settings.swayMultiplier,
+      };
+    });
   }
 
   createCharacter(texture) {
@@ -106,7 +128,21 @@ export class Game {
 
     this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
     const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
-    this.camera.position.x = totalOffset;
+
+    const targetSwayY = (0.5 - this.inputSystem.mouseY) * 0.22;
+    const easing = 1 - Math.exp(-deltaSeconds * 10);
+    this.cameraSwayX += (totalOffset - this.cameraSwayX) * easing;
+    this.cameraSwayY += (targetSwayY - this.cameraSwayY) * easing;
+
+    this.camera.position.x = this.cameraSwayX;
+    this.camera.position.y = this.cameraSwayY;
+
+    for (const layer of this.backgroundLayers) {
+      layer.mesh.position.x = -this.cameraSwayX * layer.swayMultiplier;
+      layer.mesh.position.y = -this.cameraSwayY * (layer.swayMultiplier * 0.75);
+    }
+
+    this.characterMesh.position.x = 0.8 - this.cameraSwayX * 0.08;
 
     const flashlightOn = this.inputSystem.flashlightHeld;
     this.flashlightSystem.setEnabled(flashlightOn);
@@ -141,7 +177,15 @@ export class Game {
     this.clockSystem.reset();
     this.encounterSystem.reset();
     this.camera.position.x = 0;
+    this.camera.position.y = 0;
+    this.cameraSwayX = 0;
+    this.cameraSwayY = 0;
     this.lookOffset = 0;
+    this.characterMesh.position.x = 0.8;
+    for (const layer of this.backgroundLayers) {
+      layer.mesh.position.x = 0;
+      layer.mesh.position.y = 0;
+    }
     this.state = 'running';
     this.instructionsPanel.reset();
     this.flashlightSystem.setStatus('Survive until 6:00 AM');
