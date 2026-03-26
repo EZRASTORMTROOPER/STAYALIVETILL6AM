@@ -20,7 +20,17 @@
 
       <div id="hud">
         <div id="clock">12:00 AM</div>
+        <div id="camera-label">Camera: Office</div>
         <div id="status">Survive until 6:00 AM</div>
+      </div>
+
+      <div id="camera-map" class="panel hidden" aria-live="polite">
+        <h2>Camera Map</h2>
+        <ul>
+          <li data-room="kidsco">CAM 01 - Kidsco</li>
+          <li data-room="party-room">CAM 02 - Party Room</li>
+          <li data-room="main-hall">CAM 03 - Main Hall</li>
+        </ul>
       </div>
 
       <div id="instruction-panel" class="panel">
@@ -29,6 +39,8 @@
           <li><strong>A / D</strong> or <strong>◀ / ▶</strong>: Look left/right</li>
           <li><strong>Mouse</strong>: Fine camera pan</li>
           <li><strong>F</strong> (hold): Flashlight</li>
+          <li><strong>C</strong>: Open/close security cameras</li>
+          <li><strong>Q / E</strong>: Previous/next camera room (while cameras are open)</li>
           <li><strong>R</strong>: Restart after win/loss</li>
         </ul>
         <p>Threats may appear around <strong>2 AM, 3 AM, 4 AM, and 5 AM</strong>.</p>
