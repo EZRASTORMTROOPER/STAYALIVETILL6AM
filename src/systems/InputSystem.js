@@ -6,6 +6,9 @@ export class InputSystem {
     this.mouseY = 0.5;
     this.flashlightHeld = false;
     this.restartRequested = false;
+    this.cameraToggleRequested = false;
+    this.cameraStepRequested = 0;
+    this.cameraQuickSelectRequested = null;
 
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
@@ -21,6 +24,10 @@ export class InputSystem {
     this.keys.add(key);
     if (key === 'f') this.flashlightHeld = true;
     if (key === 'r') this.restartRequested = true;
+    if (key === 'c') this.cameraToggleRequested = true;
+    if (key === 'q') this.cameraStepRequested = -1;
+    if (key === 'e') this.cameraStepRequested = 1;
+    if (key === '1' || key === '2' || key === '3') this.cameraQuickSelectRequested = Number(key) - 1;
   }
 
   onKeyUp(event) {
@@ -49,6 +56,24 @@ export class InputSystem {
   consumeRestartRequest() {
     const requested = this.restartRequested;
     this.restartRequested = false;
+    return requested;
+  }
+
+  consumeCameraToggleRequest() {
+    const requested = this.cameraToggleRequested;
+    this.cameraToggleRequested = false;
+    return requested;
+  }
+
+  consumeCameraStepRequest() {
+    const requested = this.cameraStepRequested;
+    this.cameraStepRequested = 0;
+    return requested;
+  }
+
+  consumeCameraQuickSelectRequest() {
+    const requested = this.cameraQuickSelectRequested;
+    this.cameraQuickSelectRequested = null;
     return requested;
   }
 

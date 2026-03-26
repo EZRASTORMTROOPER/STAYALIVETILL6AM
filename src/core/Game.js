@@ -16,6 +16,9 @@ export class Game {
     this.endMessage = document.getElementById('end-message');
     this.restartButton = document.getElementById('restart-button');
     this.instructionsPanel = new InstructionsPanel(document.getElementById('instruction-panel'));
+    this.cameraModeLabel = document.getElementById('camera-mode');
+    this.cameraRoomLabel = document.getElementById('camera-room');
+    this.cameraMapRooms = Array.from(document.querySelectorAll('[data-camera-room]'));
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -34,6 +37,9 @@ export class Game {
 
     this.lookOffset = 0;
     this.lookTilt = 0;
+    this.cameraFeedActive = false;
+    this.cameraRooms = ['Kidsco', 'Party Room', 'Main Hall'];
+    this.activeCameraRoomIndex = 0;
     this.state = 'loading';
 
     this.onResize = this.onResize.bind(this);
@@ -47,6 +53,7 @@ export class Game {
   async init() {
     const textures = await this.assetLoader.loadAll();
     this.setupScene(textures);
+    this.updateCameraHud();
 
     this.encounterSystem = new EncounterSystem(this.characterMesh);
     this.state = 'running';
@@ -130,17 +137,26 @@ export class Game {
   }
 
   updateRunning(deltaSeconds) {
-    this.clockSystem.update(deltaSeconds);
-    const lookAxis = this.inputSystem.getLookAxis();
-    this.lookOffset += lookAxis * deltaSeconds * 2.1;
-    const mouseOffset = (this.inputSystem.mouseX - 0.5) * 3.5;
-    const mouseVerticalOffset = (0.5 - this.inputSystem.mouseY) * 0.9;
+    this.handleCameraInput();
 
-    this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
-    const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
-    this.lookTilt = THREE.MathUtils.lerp(this.lookTilt, mouseVerticalOffset, 0.08);
-    this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, totalOffset, 0.1);
-    this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.lookTilt, 0.1);
+    this.clockSystem.update(deltaSeconds);
+    if (this.cameraFeedActive) {
+      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, 0, 0.12);
+      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, 0, 0.12);
+      this.lookOffset = THREE.MathUtils.lerp(this.lookOffset, 0, 0.12);
+      this.lookTilt = THREE.MathUtils.lerp(this.lookTilt, 0, 0.12);
+    } else {
+      const lookAxis = this.inputSystem.getLookAxis();
+      this.lookOffset += lookAxis * deltaSeconds * 2.1;
+      const mouseOffset = (this.inputSystem.mouseX - 0.5) * 3.5;
+      const mouseVerticalOffset = (0.5 - this.inputSystem.mouseY) * 0.9;
+
+      this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
+      const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
+      this.lookTilt = THREE.MathUtils.lerp(this.lookTilt, mouseVerticalOffset, 0.08);
+      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, totalOffset, 0.1);
+      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.lookTilt, 0.1);
+    }
 
     this.backgroundLayer.position.x = this.camera.position.x * -0.15;
     this.backgroundLayer.position.y = this.camera.position.y * -0.05;
@@ -151,7 +167,7 @@ export class Game {
     this.foregroundLayer.position.x = this.camera.position.x * -0.62;
     this.foregroundLayer.position.y = -0.75 + this.camera.position.y * -0.16;
 
-    const flashlightOn = this.inputSystem.flashlightHeld;
+    const flashlightOn = !this.cameraFeedActive && this.inputSystem.flashlightHeld;
     this.flashlightSystem.setEnabled(flashlightOn);
     this.flashlightSystem.update(this.inputSystem.mouseX);
 
@@ -160,9 +176,13 @@ export class Game {
     this.encounterSystem.update(deltaSeconds, flashlightOn, lookingTowardCharacter);
 
     this.clockLabel.textContent = this.clockSystem.getTimeText();
-    this.flashlightSystem.setStatus(
-      flashlightOn ? 'Flashlight active - watch for movement' : 'Survive until 6:00 AM',
-    );
+    if (this.cameraFeedActive) {
+      this.flashlightSystem.setStatus('Security cameras active');
+    } else {
+      this.flashlightSystem.setStatus(
+        flashlightOn ? 'Flashlight active - watch for movement' : 'Survive until 6:00 AM',
+      );
+    }
 
     if (this.encounterSystem.shouldLose()) {
       this.endGame(false, 'You were caught in the dark. Use the flashlight when the threat appears.');
@@ -187,6 +207,9 @@ export class Game {
     this.camera.position.y = 0;
     this.lookOffset = 0;
     this.lookTilt = 0;
+    this.cameraFeedActive = false;
+    this.activeCameraRoomIndex = 0;
+    this.updateCameraHud();
     this.state = 'running';
     this.instructionsPanel.reset();
     this.flashlightSystem.setStatus('Survive until 6:00 AM');
@@ -218,5 +241,46 @@ export class Game {
     this.camera.bottom = -viewHeight / 2;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  handleCameraInput() {
+    if (this.inputSystem.consumeCameraToggleRequest()) {
+      this.cameraFeedActive = !this.cameraFeedActive;
+      this.updateCameraHud();
+    }
+
+    const quickSelectRoom = this.inputSystem.consumeCameraQuickSelectRequest();
+    if (quickSelectRoom !== null) {
+      this.activeCameraRoomIndex = quickSelectRoom;
+      if (!this.cameraFeedActive) {
+        this.cameraFeedActive = true;
+      }
+      this.updateCameraHud();
+      return;
+    }
+
+    const cameraStep = this.inputSystem.consumeCameraStepRequest();
+    if (cameraStep !== 0) {
+      const roomCount = this.cameraRooms.length;
+      this.activeCameraRoomIndex = (this.activeCameraRoomIndex + cameraStep + roomCount) % roomCount;
+      this.cameraFeedActive = true;
+      this.updateCameraHud();
+    }
+  }
+
+  updateCameraHud() {
+    if (!this.cameraModeLabel || !this.cameraRoomLabel || this.cameraMapRooms.length === 0) {
+      return;
+    }
+
+    this.cameraModeLabel.textContent = this.cameraFeedActive ? 'Camera: ONLINE' : 'Camera: OFF';
+    this.cameraModeLabel.classList.toggle('active', this.cameraFeedActive);
+
+    const currentRoom = this.cameraRooms[this.activeCameraRoomIndex];
+    this.cameraRoomLabel.textContent = `Viewing: ${currentRoom}`;
+    this.cameraMapRooms.forEach((roomNode) => {
+      const isActive = roomNode.dataset.cameraRoom === currentRoom;
+      roomNode.classList.toggle('active', isActive);
+    });
   }
 }
