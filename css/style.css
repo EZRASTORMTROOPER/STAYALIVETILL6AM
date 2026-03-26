@@ -49,6 +49,52 @@ body,
   opacity: 0.92;
 }
 
+#camera-mode,
+#camera-room {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  opacity: 0.95;
+  letter-spacing: 0.02em;
+}
+
+#camera-mode.active {
+  color: #9fc5ff;
+}
+
+#camera-map {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  min-width: 220px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+#camera-map h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.92;
+}
+
+#camera-map ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#camera-map li {
+  font-size: 0.82rem;
+  margin-top: 4px;
+  color: rgba(232, 237, 247, 0.75);
+}
+
+#camera-map li.active {
+  color: #b7d3ff;
+  font-weight: 700;
+}
+
 .panel {
   position: absolute;
   right: 16px;
