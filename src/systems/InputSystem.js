@@ -3,6 +3,7 @@ export class InputSystem {
     this.canvas = canvas;
     this.keys = new Set();
     this.mouseX = 0;
+    this.mouseY = 0.5;
     this.flashlightHeld = false;
     this.restartRequested = false;
 
@@ -30,9 +31,11 @@ export class InputSystem {
 
   onMouseMove(event) {
     const rect = this.canvas.getBoundingClientRect();
-    if (rect.width === 0) return;
+    if (rect.width === 0 || rect.height === 0) return;
     const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
     this.mouseX = Math.max(0, Math.min(1, x));
+    this.mouseY = Math.max(0, Math.min(1, y));
   }
 
   getLookAxis() {
