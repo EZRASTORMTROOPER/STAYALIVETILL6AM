@@ -1,0 +1,85 @@
+:root {
+  color-scheme: dark;
+  font-family: 'Trebuchet MS', Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #020202;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+#ui-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#hud {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  gap: 14px;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 8px #000;
+}
+
+#clock,
+#power {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+#instructions {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  width: min(320px, 40vw);
+  background: rgba(5, 5, 5, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  line-height: 1.35;
+  text-shadow: 0 0 8px #000;
+}
+
+#instructions h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+#instructions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+#instructions p {
+  margin: 10px 0 0;
+}
+
+#status-banner {
+  position: absolute;
+  bottom: 9vh;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  text-align: center;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 10px #000;
+}
