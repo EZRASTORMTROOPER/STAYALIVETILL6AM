@@ -32,6 +32,7 @@ export class Game {
     this.flashlightSystem = new FlashlightSystem(document.getElementById('flashlight-mask'), this.statusLabel);
 
     this.lookOffset = 0;
+    this.characterBaseX = 0.8;
     this.state = 'loading';
 
     this.onResize = this.onResize.bind(this);
@@ -53,8 +54,11 @@ export class Game {
   }
 
   setupScene(textures) {
-    const background = this.createBackground(textures.officeBackground);
-    this.scene.add(background);
+    const { backgroundFar, backgroundNear } = this.createBackgroundLayers(textures.officeBackground);
+    this.backgroundFar = backgroundFar;
+    this.backgroundNear = backgroundNear;
+    this.scene.add(this.backgroundFar);
+    this.scene.add(this.backgroundNear);
 
     this.characterMesh = this.createCharacter(textures.characterSprite);
     this.scene.add(this.characterMesh);
@@ -73,13 +77,24 @@ export class Game {
     }
   }
 
-  createBackground(texture) {
+  createBackgroundLayers(texture) {
     const geometry = new THREE.PlaneGeometry(16, 9);
-    const material = texture
-      ? new THREE.MeshBasicMaterial({ map: texture })
+    const farMaterial = texture
+      ? new THREE.MeshBasicMaterial({ map: texture, color: '#b9c0d1' })
       : new THREE.MeshBasicMaterial({ color: '#202533' });
+    const nearMaterial = texture
+      ? new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0.32, color: '#6d7486' })
+      : new THREE.MeshBasicMaterial({ color: '#171c28', transparent: true, opacity: 0.28 });
 
-    return new THREE.Mesh(geometry, material);
+    const backgroundFar = new THREE.Mesh(geometry, farMaterial);
+    backgroundFar.position.z = -0.35;
+    backgroundFar.scale.set(1.1, 1.1, 1);
+
+    const backgroundNear = new THREE.Mesh(geometry, nearMaterial);
+    backgroundNear.position.z = 0.08;
+    backgroundNear.scale.set(1.2, 1.2, 1);
+
+    return { backgroundFar, backgroundNear };
   }
 
   createCharacter(texture) {
@@ -93,7 +108,7 @@ export class Game {
     }
 
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0.8, -0.8, 0.2);
+    mesh.position.set(this.characterBaseX, -0.8, 0.2);
     mesh.visible = false;
     return mesh;
   }
@@ -106,7 +121,10 @@ export class Game {
 
     this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
     const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
-    this.camera.position.x = totalOffset;
+    this.camera.position.x = totalOffset * 0.25;
+    this.backgroundFar.position.x = totalOffset * 0.22;
+    this.backgroundNear.position.x = totalOffset * 0.52;
+    this.characterMesh.position.x = this.characterBaseX + totalOffset * 0.82;
 
     const flashlightOn = this.inputSystem.flashlightHeld;
     this.flashlightSystem.setEnabled(flashlightOn);
@@ -141,6 +159,9 @@ export class Game {
     this.clockSystem.reset();
     this.encounterSystem.reset();
     this.camera.position.x = 0;
+    if (this.backgroundFar) this.backgroundFar.position.x = 0;
+    if (this.backgroundNear) this.backgroundNear.position.x = 0;
+    if (this.characterMesh) this.characterMesh.position.x = this.characterBaseX;
     this.lookOffset = 0;
     this.state = 'running';
     this.instructionsPanel.reset();
