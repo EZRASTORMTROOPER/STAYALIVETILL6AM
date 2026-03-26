@@ -22,8 +22,8 @@ export class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-8, 8, 4.5, -4.5, 0.1, 50);
-    this.camera.position.z = 10;
+    this.camera = new THREE.PerspectiveCamera(52, window.innerWidth / window.innerHeight, 0.1, 50);
+    this.camera.position.set(0, 0, 8.2);
 
     this.runtimeClock = new THREE.Clock();
     this.assetLoader = new AssetLoader();
@@ -32,6 +32,13 @@ export class Game {
     this.flashlightSystem = new FlashlightSystem(document.getElementById('flashlight-mask'), this.statusLabel);
 
     this.lookOffset = 0;
+    this.parallaxStrength = {
+      camera: 0.92,
+      far: 0.34,
+      mid: 0.56,
+      foreground: 0.94,
+      character: 1.18,
+    };
     this.state = 'loading';
 
     this.onResize = this.onResize.bind(this);
@@ -53,8 +60,32 @@ export class Game {
   }
 
   setupScene(textures) {
-    const background = this.createBackground(textures.officeBackground);
-    this.scene.add(background);
+    this.farBackgroundMesh = this.createBackground(textures.officeBackground, {
+      width: 30,
+      height: 13,
+      z: -3.2,
+      opacity: 0.85,
+      color: '#8e96a8',
+    });
+    this.scene.add(this.farBackgroundMesh);
+
+    this.midBackgroundMesh = this.createBackground(textures.officeBackground, {
+      width: 24,
+      height: 11,
+      z: -1.4,
+      opacity: 1,
+      color: '#ffffff',
+    });
+    this.scene.add(this.midBackgroundMesh);
+
+    this.foregroundMesh = this.createBackground(textures.officeBackground, {
+      width: 21,
+      height: 10.2,
+      z: -0.55,
+      opacity: 0.3,
+      color: '#4b5872',
+    });
+    this.scene.add(this.foregroundMesh);
 
     this.characterMesh = this.createCharacter(textures.characterSprite);
     this.scene.add(this.characterMesh);
@@ -73,13 +104,16 @@ export class Game {
     }
   }
 
-  createBackground(texture) {
-    const geometry = new THREE.PlaneGeometry(16, 9);
+  createBackground(texture, options = {}) {
+    const { width = 16, height = 9, z = 0, opacity = 1, color = '#ffffff' } = options;
+    const geometry = new THREE.PlaneGeometry(width, height);
     const material = texture
-      ? new THREE.MeshBasicMaterial({ map: texture })
-      : new THREE.MeshBasicMaterial({ color: '#202533' });
+      ? new THREE.MeshBasicMaterial({ map: texture, transparent: opacity < 1, opacity, color })
+      : new THREE.MeshBasicMaterial({ color: '#202533', transparent: opacity < 1, opacity });
 
-    return new THREE.Mesh(geometry, material);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.z = z;
+    return mesh;
   }
 
   createCharacter(texture) {
@@ -106,7 +140,7 @@ export class Game {
 
     this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
     const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
-    this.camera.position.x = totalOffset;
+    this.applyParallax(totalOffset);
 
     const flashlightOn = this.inputSystem.flashlightHeld;
     this.flashlightSystem.setEnabled(flashlightOn);
@@ -148,6 +182,26 @@ export class Game {
     this.runtimeClock.getDelta();
   }
 
+  applyParallax(totalOffset) {
+    this.camera.position.x = totalOffset * this.parallaxStrength.camera;
+
+    if (this.farBackgroundMesh) {
+      this.farBackgroundMesh.position.x = -totalOffset * this.parallaxStrength.far;
+    }
+
+    if (this.midBackgroundMesh) {
+      this.midBackgroundMesh.position.x = -totalOffset * this.parallaxStrength.mid;
+    }
+
+    if (this.foregroundMesh) {
+      this.foregroundMesh.position.x = -totalOffset * this.parallaxStrength.foreground;
+    }
+
+    if (this.characterMesh) {
+      this.characterMesh.position.x = 0.8 + totalOffset * this.parallaxStrength.character;
+    }
+  }
+
   loop() {
     const deltaSeconds = Math.min(this.runtimeClock.getDelta(), 0.1);
 
@@ -164,13 +218,7 @@ export class Game {
   }
 
   onResize() {
-    const aspect = window.innerWidth / window.innerHeight;
-    const viewHeight = 9;
-    const viewWidth = viewHeight * aspect;
-    this.camera.left = -viewWidth / 2;
-    this.camera.right = viewWidth / 2;
-    this.camera.top = viewHeight / 2;
-    this.camera.bottom = -viewHeight / 2;
+    this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
