@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Night Shift MVP</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="game-root"></div>
+    <div id="hud">
+      <div id="clock">12:00 AM</div>
+      <div id="power">Power: 100%</div>
+    </div>
+
+    <div id="instructions" class="panel">
+      <h1>Night Shift MVP</h1>
+      <p>Survive until <strong>6:00 AM</strong>.</p>
+      <ul>
+        <li><strong>A / D</strong> or <strong>← / →</strong>: Look left/right</li>
+        <li><strong>F</strong> or hold <strong>Mouse Left</strong>: Flashlight</li>
+        <li><strong>H</strong>: Toggle this help panel</li>
+      </ul>
+      <p>
+        The animatronic appears around <strong>2 AM, 3 AM, 4 AM, and 5 AM</strong>.
+        Use the flashlight to catch it.
+      </p>
+      <button id="start-button">Start Night</button>
+    </div>
+
+    <div id="result" class="panel hidden">
+      <h2 id="result-title"></h2>
+      <p id="result-text"></p>
+      <button id="restart-button">Restart</button>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
