@@ -50,9 +50,11 @@ export class Game {
     this.onResize = this.onResize.bind(this);
     this.loop = this.loop.bind(this);
     this.restart = this.restart.bind(this);
+    this.onCameraMapClick = this.onCameraMapClick.bind(this);
 
     window.addEventListener('resize', this.onResize);
     this.restartButton.addEventListener('click', this.restart);
+    this.cameraMap.addEventListener('click', this.onCameraMapClick);
   }
 
   async init() {
@@ -176,6 +178,7 @@ export class Game {
     this.flashlightSystem.update(this.inputSystem.mouseX);
 
     this.encounterSystem.syncHour(this.clockSystem.currentHour);
+    this.characterMesh.visible = this.characterMesh.visible && !this.securityCameraActive;
     const lookingTowardCharacter = Math.abs(this.camera.position.x - this.characterMesh.position.x) < 1.45;
     this.encounterSystem.update(deltaSeconds, flashlightOn, lookingTowardCharacter);
 
@@ -233,9 +236,6 @@ export class Game {
     if (this.inputSystem.consumeNextSecurityCameraRequest()) {
       this.shiftSecurityCamera(1);
     }
-    if (this.inputSystem.consumePreviousSecurityCameraRequest()) {
-      this.shiftSecurityCamera(-1);
-    }
 
     if (this.state === 'running') {
       this.updateRunning(deltaSeconds);
@@ -272,6 +272,21 @@ export class Game {
     this.updateCameraHud();
   }
 
+  openSecurityCameraRoom(roomId) {
+    const roomIndex = this.securityRooms.findIndex((room) => room.id === roomId);
+    if (roomIndex < 0 || this.state !== 'running') return;
+    this.securityCameraActive = true;
+    this.activeSecurityRoomIndex = roomIndex;
+    this.updateBackgroundForView();
+    this.updateCameraHud();
+  }
+
+  onCameraMapClick(event) {
+    const roomButton = event.target.closest('[data-camera-room]');
+    if (!roomButton) return;
+    this.openSecurityCameraRoom(roomButton.dataset.cameraRoom);
+  }
+
   updateBackgroundForView() {
     if (!this.backgroundLayer || !this.backgroundLayer.material || !this.textures) return;
     const texture = this.securityCameraActive
@@ -287,7 +302,7 @@ export class Game {
       ? 'Security Camera: ON (C to close)'
       : 'Security Camera: OFF (C to open)';
     this.cameraRoomLabel.textContent = this.securityCameraActive
-      ? `Current feed: ${this.securityRooms[this.activeSecurityRoomIndex].label} (Q / E to switch)`
+      ? `Current feed: ${this.securityRooms[this.activeSecurityRoomIndex].label} (Space to cycle)`
       : 'Current feed: Office view';
     this.cameraMap.classList.toggle('active', this.securityCameraActive);
 
