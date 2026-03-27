@@ -67,7 +67,7 @@ body,
   display: flex;
 }
 
-#camera-map span {
+#camera-map button {
   border: 1px solid rgba(189, 204, 235, 0.35);
   border-radius: 999px;
   padding: 2px 8px;
@@ -75,7 +75,17 @@ body,
   opacity: 0.82;
 }
 
-#camera-map span.active {
+#camera-map button {
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+#camera-map button:hover {
+  border-color: rgba(175, 203, 255, 0.8);
+}
+
+#camera-map button.active {
   background: rgba(118, 161, 255, 0.35);
   border-color: rgba(175, 203, 255, 0.9);
   opacity: 1;
