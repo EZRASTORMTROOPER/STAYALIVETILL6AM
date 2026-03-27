@@ -67,15 +67,19 @@ body,
   display: flex;
 }
 
-#camera-map span {
+#camera-map button {
+  appearance: none;
+  background: transparent;
+  color: inherit;
   border: 1px solid rgba(189, 204, 235, 0.35);
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 0.75rem;
   opacity: 0.82;
+  cursor: pointer;
 }
 
-#camera-map span.active {
+#camera-map button.active {
   background: rgba(118, 161, 255, 0.35);
   border-color: rgba(175, 203, 255, 0.9);
   opacity: 1;
