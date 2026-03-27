@@ -60,4 +60,9 @@ export class EncounterSystem {
   shouldLose() {
     return this.loseTriggered;
   }
+
+  isCharacterVisible() {
+    const encounter = this.encounters.get(this.currentHour);
+    return Boolean(encounter && encounter.active && !encounter.resolved);
+  }
 }
