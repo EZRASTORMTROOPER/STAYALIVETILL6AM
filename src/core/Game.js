@@ -11,6 +11,10 @@ export class Game {
     this.canvas = document.getElementById('game-canvas');
     this.clockLabel = document.getElementById('clock');
     this.statusLabel = document.getElementById('status');
+    this.cameraModeLabel = document.getElementById('camera-mode');
+    this.cameraRoomLabel = document.getElementById('camera-room');
+    this.cameraMap = document.getElementById('camera-map');
+    this.cameraMapNodes = Array.from(document.querySelectorAll('[data-camera-room]'));
     this.endPanel = document.getElementById('end-panel');
     this.endTitle = document.getElementById('end-title');
     this.endMessage = document.getElementById('end-message');
@@ -34,6 +38,13 @@ export class Game {
 
     this.lookOffset = 0;
     this.lookTilt = 0;
+    this.securityCameraActive = false;
+    this.securityRooms = [
+      { id: 'kidsco', label: 'Kidsco', textureKey: 'kidscoRoomBackground' },
+      { id: 'party-room', label: 'Party Room', textureKey: 'partyRoomBackground' },
+      { id: 'main-hall', label: 'Main Hall', textureKey: 'mainHallBackground' },
+    ];
+    this.activeSecurityRoomIndex = 0;
     this.state = 'loading';
 
     this.onResize = this.onResize.bind(this);
@@ -55,6 +66,7 @@ export class Game {
   }
 
   setupScene(textures) {
+    this.textures = textures;
     const background = this.createBackground(textures.officeBackground);
     this.backgroundLayer = background;
     this.scene.add(this.backgroundLayer);
@@ -80,6 +92,9 @@ export class Game {
       flashlightOverlay.position.z = 1;
       this.scene.add(flashlightOverlay);
     }
+
+    this.updateBackgroundForView();
+    this.updateCameraHud();
   }
 
   createMidLayer() {
@@ -131,16 +146,21 @@ export class Game {
 
   updateRunning(deltaSeconds) {
     this.clockSystem.update(deltaSeconds);
-    const lookAxis = this.inputSystem.getLookAxis();
-    this.lookOffset += lookAxis * deltaSeconds * 2.1;
-    const mouseOffset = (this.inputSystem.mouseX - 0.5) * 3.5;
-    const mouseVerticalOffset = (0.5 - this.inputSystem.mouseY) * 0.9;
+    if (!this.securityCameraActive) {
+      const lookAxis = this.inputSystem.getLookAxis();
+      this.lookOffset += lookAxis * deltaSeconds * 2.1;
+      const mouseOffset = (this.inputSystem.mouseX - 0.5) * 3.5;
+      const mouseVerticalOffset = (0.5 - this.inputSystem.mouseY) * 0.9;
 
-    this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
-    const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
-    this.lookTilt = THREE.MathUtils.lerp(this.lookTilt, mouseVerticalOffset, 0.08);
-    this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, totalOffset, 0.1);
-    this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.lookTilt, 0.1);
+      this.lookOffset = THREE.MathUtils.clamp(this.lookOffset, -2.8, 2.8);
+      const totalOffset = THREE.MathUtils.clamp(this.lookOffset + mouseOffset, -3.3, 3.3);
+      this.lookTilt = THREE.MathUtils.lerp(this.lookTilt, mouseVerticalOffset, 0.08);
+      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, totalOffset, 0.1);
+      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, this.lookTilt, 0.1);
+    } else {
+      this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, 0, 0.15);
+      this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, 0, 0.15);
+    }
 
     this.backgroundLayer.position.x = this.camera.position.x * -0.15;
     this.backgroundLayer.position.y = this.camera.position.y * -0.05;
@@ -151,7 +171,7 @@ export class Game {
     this.foregroundLayer.position.x = this.camera.position.x * -0.62;
     this.foregroundLayer.position.y = -0.75 + this.camera.position.y * -0.16;
 
-    const flashlightOn = this.inputSystem.flashlightHeld;
+    const flashlightOn = this.inputSystem.flashlightHeld && !this.securityCameraActive;
     this.flashlightSystem.setEnabled(flashlightOn);
     this.flashlightSystem.update(this.inputSystem.mouseX);
 
@@ -160,9 +180,12 @@ export class Game {
     this.encounterSystem.update(deltaSeconds, flashlightOn, lookingTowardCharacter);
 
     this.clockLabel.textContent = this.clockSystem.getTimeText();
-    this.flashlightSystem.setStatus(
-      flashlightOn ? 'Flashlight active - watch for movement' : 'Survive until 6:00 AM',
-    );
+    const statusText = this.securityCameraActive
+      ? `Viewing ${this.securityRooms[this.activeSecurityRoomIndex].label} security camera`
+      : flashlightOn
+        ? 'Flashlight active - watch for movement'
+        : 'Survive until 6:00 AM';
+    this.flashlightSystem.setStatus(statusText);
 
     if (this.encounterSystem.shouldLose()) {
       this.endGame(false, 'You were caught in the dark. Use the flashlight when the threat appears.');
@@ -187,6 +210,10 @@ export class Game {
     this.camera.position.y = 0;
     this.lookOffset = 0;
     this.lookTilt = 0;
+    this.securityCameraActive = false;
+    this.activeSecurityRoomIndex = 0;
+    this.updateBackgroundForView();
+    this.updateCameraHud();
     this.state = 'running';
     this.instructionsPanel.reset();
     this.flashlightSystem.setStatus('Survive until 6:00 AM');
@@ -198,6 +225,16 @@ export class Game {
 
     if (this.inputSystem.consumeRestartRequest()) {
       this.restart();
+    }
+
+    if (this.inputSystem.consumeToggleSecurityCameraRequest()) {
+      this.toggleSecurityCamera();
+    }
+    if (this.inputSystem.consumeNextSecurityCameraRequest()) {
+      this.shiftSecurityCamera(1);
+    }
+    if (this.inputSystem.consumePreviousSecurityCameraRequest()) {
+      this.shiftSecurityCamera(-1);
     }
 
     if (this.state === 'running') {
@@ -218,5 +255,44 @@ export class Game {
     this.camera.bottom = -viewHeight / 2;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  toggleSecurityCamera() {
+    if (this.state !== 'running') return;
+    this.securityCameraActive = !this.securityCameraActive;
+    this.updateBackgroundForView();
+    this.updateCameraHud();
+  }
+
+  shiftSecurityCamera(direction) {
+    if (this.state !== 'running' || !this.securityCameraActive) return;
+    const roomCount = this.securityRooms.length;
+    this.activeSecurityRoomIndex = (this.activeSecurityRoomIndex + direction + roomCount) % roomCount;
+    this.updateBackgroundForView();
+    this.updateCameraHud();
+  }
+
+  updateBackgroundForView() {
+    if (!this.backgroundLayer || !this.backgroundLayer.material || !this.textures) return;
+    const texture = this.securityCameraActive
+      ? this.textures[this.securityRooms[this.activeSecurityRoomIndex].textureKey]
+      : this.textures.officeBackground;
+    this.backgroundLayer.material.map = texture || null;
+    this.backgroundLayer.material.needsUpdate = true;
+  }
+
+  updateCameraHud() {
+    if (!this.cameraModeLabel || !this.cameraRoomLabel || !this.cameraMap) return;
+    this.cameraModeLabel.textContent = this.securityCameraActive
+      ? 'Security Camera: ON (C to close)'
+      : 'Security Camera: OFF (C to open)';
+    this.cameraRoomLabel.textContent = this.securityCameraActive
+      ? `Current feed: ${this.securityRooms[this.activeSecurityRoomIndex].label} (Q / E to switch)`
+      : 'Current feed: Office view';
+    this.cameraMap.classList.toggle('active', this.securityCameraActive);
+
+    this.cameraMapNodes.forEach((node) => {
+      node.classList.toggle('active', node.dataset.cameraRoom === this.securityRooms[this.activeSecurityRoomIndex].id);
+    });
   }
 }

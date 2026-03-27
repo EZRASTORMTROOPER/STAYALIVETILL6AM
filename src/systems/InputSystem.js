@@ -6,6 +6,9 @@ export class InputSystem {
     this.mouseY = 0.5;
     this.flashlightHeld = false;
     this.restartRequested = false;
+    this.toggleSecurityCameraRequested = false;
+    this.nextSecurityCameraRequested = false;
+    this.previousSecurityCameraRequested = false;
 
     this.onKeyDown = this.onKeyDown.bind(this);
     this.onKeyUp = this.onKeyUp.bind(this);
@@ -21,6 +24,10 @@ export class InputSystem {
     this.keys.add(key);
     if (key === 'f') this.flashlightHeld = true;
     if (key === 'r') this.restartRequested = true;
+    if (event.repeat) return;
+    if (key === 'c') this.toggleSecurityCameraRequested = true;
+    if (key === 'e') this.nextSecurityCameraRequested = true;
+    if (key === 'q') this.previousSecurityCameraRequested = true;
   }
 
   onKeyUp(event) {
@@ -49,6 +56,24 @@ export class InputSystem {
   consumeRestartRequest() {
     const requested = this.restartRequested;
     this.restartRequested = false;
+    return requested;
+  }
+
+  consumeToggleSecurityCameraRequest() {
+    const requested = this.toggleSecurityCameraRequested;
+    this.toggleSecurityCameraRequested = false;
+    return requested;
+  }
+
+  consumeNextSecurityCameraRequest() {
+    const requested = this.nextSecurityCameraRequested;
+    this.nextSecurityCameraRequested = false;
+    return requested;
+  }
+
+  consumePreviousSecurityCameraRequest() {
+    const requested = this.previousSecurityCameraRequested;
+    this.previousSecurityCameraRequested = false;
     return requested;
   }
 
