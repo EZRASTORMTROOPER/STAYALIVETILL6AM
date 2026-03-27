@@ -20,14 +20,20 @@ export class AssetLoader {
   }
 
   async loadAll() {
-    const [officeBackground, flashlightOverlay, characterSprite] = await Promise.all([
+    const [officeBackground, kidscoRoomBackground, partyRoomBackground, mainHallBackground, flashlightOverlay, characterSprite] = await Promise.all([
       this.loadTexture('./assets/office-background.png'),
+      this.loadTexture('./assets/kids-co-room-bg.png'),
+      this.loadTexture('./assets/party-room-bg.png'),
+      this.loadTexture('./assets/main-hall-bg.png'),
       this.loadTexture('./assets/flashlight-overlay.png'),
       this.loadTexture('./assets/spider-spritesheet.png'),
     ]);
 
     return {
       officeBackground,
+      kidscoRoomBackground,
+      partyRoomBackground,
+      mainHallBackground,
       flashlightOverlay,
       characterSprite,
     };
