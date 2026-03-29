@@ -145,3 +145,21 @@ body,
   opacity: 0;
   transition: opacity 100ms linear;
 }
+
+#jumpscare-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 15;
+  background-image: url('../assets/spider-jumpscare.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  transform: translate(0, 0) scale(0.8);
+  transform-origin: center;
+}
+
+#jumpscare-overlay.active {
+  opacity: 1;
+}
