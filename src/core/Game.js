@@ -20,6 +20,7 @@ export class Game {
     this.endMessage = document.getElementById('end-message');
     this.restartButton = document.getElementById('restart-button');
     this.instructionsPanel = new InstructionsPanel(document.getElementById('instruction-panel'));
+    this.jumpscareFlash = document.getElementById('jumpscare-flash');
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -46,6 +47,19 @@ export class Game {
     ];
     this.activeSecurityRoomIndex = 0;
     this.state = 'loading';
+    this.jumpscareElapsed = 0;
+    this.jumpscareDuration = 1.7;
+    this.pendingEndMessage = '';
+    this.pendingEndWon = false;
+    this.backgroundMusicStarted = false;
+
+    this.backgroundMusic = new Audio('./sound-effects/scary-background-music.mp3');
+    this.backgroundMusic.loop = true;
+    this.backgroundMusic.volume = 0.42;
+
+    this.jumpscareAudio = new Audio('./sound-effects/jumpscare.mp3');
+    this.jumpscareAudio.loop = false;
+    this.jumpscareAudio.volume = 1;
 
     this.onResize = this.onResize.bind(this);
     this.loop = this.loop.bind(this);
@@ -97,8 +111,22 @@ export class Game {
       this.scene.add(flashlightOverlay);
     }
 
+    this.jumpscareMesh = this.createJumpscareMesh(textures.jumpscareFrame);
+    this.scene.add(this.jumpscareMesh);
+
     this.updateBackgroundForView();
     this.updateCameraHud();
+  }
+
+  createJumpscareMesh(texture) {
+    const geometry = new THREE.PlaneGeometry(6, 6);
+    const material = texture
+      ? new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 })
+      : new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 0, 3);
+    mesh.visible = false;
+    return mesh;
   }
 
   createMidLayer() {
@@ -192,15 +220,94 @@ export class Game {
         : 'Survive until 6:00 AM';
     this.flashlightSystem.setStatus(statusText);
 
+    this.tryStartBackgroundMusic();
+
     if (this.encounterSystem.shouldLose()) {
-      this.endGame(false, 'You were caught in the dark. Use the flashlight when the threat appears.');
+      this.triggerJumpscare('You were caught in the dark. Use the flashlight when the threat appears.');
     } else if (this.clockSystem.isNightOver) {
       this.endGame(true, '6:00 AM. You made it through the night.');
     }
   }
 
+  updateJumpscare(deltaSeconds) {
+    this.jumpscareElapsed += deltaSeconds;
+    const progress = Math.min(this.jumpscareElapsed / this.jumpscareDuration, 1);
+    const eased = 1 - (1 - progress) ** 3;
+    const pulse = Math.sin(this.jumpscareElapsed * 38) * 0.08;
+    const scale = 0.3 + eased * 3.9 + pulse;
+
+    this.jumpscareMesh.visible = true;
+    this.jumpscareMesh.scale.setScalar(scale);
+    this.jumpscareMesh.material.opacity = Math.min(1, 0.75 + eased * 0.25);
+    this.jumpscareMesh.position.x = Math.sin(this.jumpscareElapsed * 28) * (1 - progress) * 0.45;
+    this.jumpscareMesh.position.y = Math.cos(this.jumpscareElapsed * 22) * (1 - progress) * 0.2;
+
+    this.foregroundLayer.material.opacity = 0.55 + Math.sin(this.jumpscareElapsed * 20) * 0.2;
+    this.midLayer.material.opacity = 0.22 + Math.sin(this.jumpscareElapsed * 24) * 0.15;
+    this.backgroundLayer.material.color = new THREE.Color().setRGB(1, 0.25 + pulse, 0.25 + pulse);
+
+    if (this.jumpscareFlash) {
+      this.jumpscareFlash.classList.add('active');
+      this.jumpscareFlash.style.opacity = String(Math.max(0, 0.8 - progress * 0.95));
+    }
+
+    if (progress >= 1) {
+      this.endGame(this.pendingEndWon, this.pendingEndMessage);
+      this.jumpscareMesh.visible = false;
+      this.jumpscareMesh.material.opacity = 0;
+      this.backgroundLayer.material.color = new THREE.Color('#ffffff');
+      this.midLayer.material.opacity = 0.22;
+      this.foregroundLayer.material.opacity = 0.55;
+      if (this.jumpscareFlash) {
+        this.jumpscareFlash.classList.remove('active');
+        this.jumpscareFlash.style.opacity = '0';
+      }
+    }
+  }
+
+  triggerJumpscare(message) {
+    if (this.state !== 'running') return;
+    this.state = 'jumpscare';
+    this.pendingEndMessage = message;
+    this.pendingEndWon = false;
+    this.jumpscareElapsed = 0;
+    this.flashlightSystem.setEnabled(false);
+    this.stopBackgroundMusic();
+    this.playJumpscareAudio();
+  }
+
+  tryStartBackgroundMusic() {
+    if (this.backgroundMusicStarted || this.state !== 'running') return;
+    const playPromise = this.backgroundMusic.play();
+    if (playPromise && typeof playPromise.then === 'function') {
+      playPromise
+        .then(() => {
+          this.backgroundMusicStarted = true;
+        })
+        .catch(() => {
+          // Browser autoplay policies may block this until user interaction.
+        });
+    } else {
+      this.backgroundMusicStarted = true;
+    }
+  }
+
+  stopBackgroundMusic() {
+    this.backgroundMusic.pause();
+    this.backgroundMusic.currentTime = 0;
+    this.backgroundMusicStarted = false;
+  }
+
+  playJumpscareAudio() {
+    this.jumpscareAudio.currentTime = 0;
+    void this.jumpscareAudio.play().catch(() => {
+      // Best effort: if blocked by browser policy, continue visual jumpscare.
+    });
+  }
+
   endGame(won, message) {
     this.state = 'ended';
+    this.stopBackgroundMusic();
     this.endPanel.classList.remove('hidden');
     this.endTitle.textContent = won ? 'Shift Complete' : 'Game Over';
     this.endMessage.textContent = message;
@@ -220,6 +327,20 @@ export class Game {
     this.updateBackgroundForView();
     this.updateCameraHud();
     this.state = 'running';
+    this.jumpscareElapsed = 0;
+    this.pendingEndMessage = '';
+    this.pendingEndWon = false;
+    this.jumpscareMesh.visible = false;
+    this.jumpscareMesh.material.opacity = 0;
+    this.backgroundLayer.material.color = new THREE.Color('#ffffff');
+    this.midLayer.material.opacity = 0.22;
+    this.foregroundLayer.material.opacity = 0.55;
+    this.jumpscareAudio.pause();
+    this.jumpscareAudio.currentTime = 0;
+    if (this.jumpscareFlash) {
+      this.jumpscareFlash.classList.remove('active');
+      this.jumpscareFlash.style.opacity = '0';
+    }
     this.instructionsPanel.reset();
     this.flashlightSystem.setStatus('Survive until 6:00 AM');
     this.runtimeClock.getDelta();
@@ -241,6 +362,8 @@ export class Game {
 
     if (this.state === 'running') {
       this.updateRunning(deltaSeconds);
+    } else if (this.state === 'jumpscare') {
+      this.updateJumpscare(deltaSeconds);
     }
 
     this.renderer.render(this.scene, this.camera);
