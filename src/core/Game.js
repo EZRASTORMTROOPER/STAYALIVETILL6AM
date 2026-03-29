@@ -19,6 +19,7 @@ export class Game {
     this.endTitle = document.getElementById('end-title');
     this.endMessage = document.getElementById('end-message');
     this.restartButton = document.getElementById('restart-button');
+    this.jumpscareOverlay = document.getElementById('jumpscare-overlay');
     this.instructionsPanel = new InstructionsPanel(document.getElementById('instruction-panel'));
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
@@ -45,6 +46,9 @@ export class Game {
       { id: 'main-hall', label: 'Main Hall', textureKey: 'mainHallBackground' },
     ];
     this.activeSecurityRoomIndex = 0;
+    this.jumpscareElapsed = 0;
+    this.jumpscareDuration = 1.05;
+    this.jumpscareActive = false;
     this.state = 'loading';
 
     this.onResize = this.onResize.bind(this);
@@ -62,10 +66,12 @@ export class Game {
   async init() {
     const textures = await this.assetLoader.loadAll();
     this.setupScene(textures);
+    this.setupAudio();
 
     this.encounterSystem = new EncounterSystem(this.characterMesh);
     this.state = 'running';
     this.runtimeClock.start();
+    this.playBackgroundMusic();
     requestAnimationFrame(this.loop);
   }
 
@@ -99,6 +105,33 @@ export class Game {
 
     this.updateBackgroundForView();
     this.updateCameraHud();
+  }
+
+  setupAudio() {
+    this.backgroundMusic = new Audio('./sound-effects/scary-background-music.mp3');
+    this.backgroundMusic.loop = true;
+    this.backgroundMusic.volume = 0.45;
+
+    this.jumpscareSound = new Audio('./sound-effects/jumpscare.mp3');
+    this.jumpscareSound.loop = false;
+    this.jumpscareSound.volume = 1;
+
+    const unlockOnFirstInteraction = () => {
+      this.playBackgroundMusic();
+      window.removeEventListener('pointerdown', unlockOnFirstInteraction);
+      window.removeEventListener('keydown', unlockOnFirstInteraction);
+    };
+
+    window.addEventListener('pointerdown', unlockOnFirstInteraction, { once: true });
+    window.addEventListener('keydown', unlockOnFirstInteraction, { once: true });
+  }
+
+  playBackgroundMusic() {
+    if (!this.backgroundMusic || this.jumpscareActive || this.state !== 'running') return;
+    if (this.backgroundMusic.paused) {
+      this.backgroundMusic.currentTime = 0;
+      this.backgroundMusic.play().catch(() => {});
+    }
   }
 
   createMidLayer() {
@@ -199,12 +232,58 @@ export class Game {
     }
   }
 
+  updateJumpscare(deltaSeconds) {
+    if (!this.jumpscareActive || !this.jumpscareOverlay) return;
+    this.jumpscareElapsed += deltaSeconds;
+    const progress = THREE.MathUtils.clamp(this.jumpscareElapsed / this.jumpscareDuration, 0, 1);
+    const eased = 1 - (1 - progress) * (1 - progress);
+    const pulse = Math.sin(progress * 45) * (1 - progress) * 0.07;
+    const scale = 0.85 + eased * 1.65 + pulse;
+    const brightness = 0.55 + eased * 0.95;
+    const contrast = 1.1 + eased * 0.7;
+    const saturate = 1 + eased * 0.55;
+    const shakeX = Math.sin(progress * 130) * (1 - progress) * 28;
+    const shakeY = Math.cos(progress * 95) * (1 - progress) * 18;
+
+    this.jumpscareOverlay.style.transform = `translate(${shakeX}px, ${shakeY}px) scale(${scale})`;
+    this.jumpscareOverlay.style.opacity = `${0.1 + eased * 0.9}`;
+    this.jumpscareOverlay.style.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturate})`;
+    this.renderer.toneMappingExposure = 1.05 + eased * 0.65;
+
+    if (progress >= 1) {
+      this.jumpscareActive = false;
+      this.renderer.toneMappingExposure = 1;
+    }
+  }
+
   endGame(won, message) {
     this.state = 'ended';
+    if (this.backgroundMusic) {
+      this.backgroundMusic.pause();
+      this.backgroundMusic.currentTime = 0;
+    }
+
+    if (!won) {
+      this.triggerJumpscare();
+    }
+
     this.endPanel.classList.remove('hidden');
     this.endTitle.textContent = won ? 'Shift Complete' : 'Game Over';
     this.endMessage.textContent = message;
     this.flashlightSystem.setEnabled(false);
+  }
+
+  triggerJumpscare() {
+    this.jumpscareElapsed = 0;
+    this.jumpscareActive = true;
+    if (this.jumpscareOverlay) {
+      this.jumpscareOverlay.classList.add('active');
+      this.jumpscareOverlay.style.opacity = '0';
+    }
+    if (this.jumpscareSound) {
+      this.jumpscareSound.currentTime = 0;
+      this.jumpscareSound.play().catch(() => {});
+    }
   }
 
   restart() {
@@ -219,10 +298,24 @@ export class Game {
     this.activeSecurityRoomIndex = 0;
     this.updateBackgroundForView();
     this.updateCameraHud();
+    this.jumpscareElapsed = 0;
+    this.jumpscareActive = false;
+    this.renderer.toneMappingExposure = 1;
+    if (this.jumpscareOverlay) {
+      this.jumpscareOverlay.classList.remove('active');
+      this.jumpscareOverlay.style.transform = 'translate(0, 0) scale(1)';
+      this.jumpscareOverlay.style.opacity = '0';
+      this.jumpscareOverlay.style.filter = 'none';
+    }
+    if (this.jumpscareSound) {
+      this.jumpscareSound.pause();
+      this.jumpscareSound.currentTime = 0;
+    }
     this.state = 'running';
     this.instructionsPanel.reset();
     this.flashlightSystem.setStatus('Survive until 6:00 AM');
     this.runtimeClock.getDelta();
+    this.playBackgroundMusic();
   }
 
   loop() {
@@ -242,6 +335,7 @@ export class Game {
     if (this.state === 'running') {
       this.updateRunning(deltaSeconds);
     }
+    this.updateJumpscare(deltaSeconds);
 
     this.renderer.render(this.scene, this.camera);
     requestAnimationFrame(this.loop);
