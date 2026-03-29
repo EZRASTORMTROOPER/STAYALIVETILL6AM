@@ -145,3 +145,17 @@ body,
   opacity: 0;
   transition: opacity 100ms linear;
 }
+
+#jumpscare-flash {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.94) 0%, rgba(255, 40, 40, 0.9) 32%, rgba(0, 0, 0, 0.45) 100%);
+  mix-blend-mode: screen;
+  transition: opacity 70ms linear;
+}
+
+#jumpscare-flash.active {
+  opacity: 1;
+}
